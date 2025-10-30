@@ -39,6 +39,8 @@ model User {
 
   @@index([email])
   @@index([username])
+  @@unique([email, deletedAt])
+  @@unique([username, deletedAt])
 }
 
 model UserDetails {
@@ -58,6 +60,7 @@ model UserDetails {
   @@index([phone])
   @@index([gender])
   @@index([maritalStatus])
+  @@unique([userId, deletedAt])
 }
 
 // -----------------------------------------------------
@@ -91,6 +94,9 @@ model Business {
   @@index([slug])
   @@index([status])
   @@index([email])
+  @@unique([ownerId, deletedAt])
+  @@unique([email, deletedAt])
+  @@unique([slug, deletedAt])
 }
 
 // -----------------------------------------------------
@@ -129,6 +135,8 @@ model Role {
 
   permissions RoleByPermission[]
   users       RoleByUser[]
+
+  @@unique([slug, deletedAt])
 }
 
 model Permission {
@@ -141,6 +149,8 @@ model Permission {
 
   roles RoleByPermission[]
   users PermissionByUser[]
+
+  @@unique([slug, deletedAt])
 }
 
 model RoleByPermission {
