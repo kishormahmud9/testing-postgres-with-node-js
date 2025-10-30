@@ -1,0 +1,334 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// -----------------------------------------------------
+// USER MANAGEMENT
+// -----------------------------------------------------
+model User {
+  id            Int       @id @default(autoincrement())
+  name          String
+  username      String    @unique
+  email         String    @unique
+  password      String
+  businessId    Int?
+  business      Business? @relation("UsersInBusiness", fields: [businessId], references: [id])
+  status        String
+  isSystemOwner Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  userDetails     UserDetails?
+  roles           RoleByUser[]
+  permissions     PermissionByUser[]
+  logs            UserLog[]
+  notifications   Notification[]
+  ownerOfBusiness Business?          @relation("OwnerOfBusiness")
+
+  @@index([email])
+  @@index([username])
+}
+
+model UserDetails {
+  id            Int       @id @default(autoincrement())
+  userId        Int       @unique
+  user          User      @relation(fields: [userId], references: [id])
+  phone         String?
+  gender        String?
+  image         String?
+  signature     String?
+  address       String?
+  maritalStatus String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  @@index([phone])
+  @@index([gender])
+  @@index([maritalStatus])
+}
+
+// -----------------------------------------------------
+// BUSINESS MANAGEMENT
+// -----------------------------------------------------
+model Business {
+  id          Int       @id @default(autoincrement())
+  ownerId     Int       @unique
+  owner       User      @relation("OwnerOfBusiness", fields: [ownerId], references: [id])
+  users       User[]    @relation("UsersInBusiness")
+  email       String    @unique
+  title       String
+  slug        String    @unique
+  phone       String?
+  address     String?
+  logo        String?
+  description String?
+  status      String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  roles           RoleByUser[]
+  subscriptions   Subscription[]
+  invoices        Invoice[]
+  notifications   Notification[]
+  logs            UserLog[]
+  rolePermissions RoleByPermission[]
+  permissionUsers PermissionByUser[]
+
+  @@index([slug])
+  @@index([status])
+  @@index([email])
+}
+
+// -----------------------------------------------------
+// AUDIT LOGGING
+// -----------------------------------------------------
+model UserLog {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  businessId Int?
+  action     String
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  user     User      @relation(fields: [userId], references: [id])
+  business Business? @relation(fields: [businessId], references: [id])
+
+  @@index([userId])
+  @@index([businessId])
+  @@index([createdAt])
+  @@index([userId, createdAt])
+}
+
+// -----------------------------------------------------
+// ROLE & PERMISSION SYSTEM
+// -----------------------------------------------------
+model Role {
+  id        Int       @id @default(autoincrement())
+  title     String
+  slug      String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  permissions RoleByPermission[]
+  users       RoleByUser[]
+}
+
+model Permission {
+  id        Int       @id @default(autoincrement())
+  title     String
+  slug      String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  roles RoleByPermission[]
+  users PermissionByUser[]
+}
+
+model RoleByPermission {
+  id           Int       @id @default(autoincrement())
+  roleId       Int
+  permissionId Int
+  businessId   Int?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  role       Role       @relation(fields: [roleId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+  business   Business?  @relation(fields: [businessId], references: [id])
+
+  @@unique([roleId, permissionId, businessId])
+  @@index([roleId])
+  @@index([permissionId])
+  @@index([businessId])
+}
+
+model RoleByUser {
+  id         Int       @id @default(autoincrement())
+  roleId     Int
+  userId     Int
+  businessId Int?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  role     Role      @relation(fields: [roleId], references: [id])
+  user     User      @relation(fields: [userId], references: [id])
+  business Business? @relation(fields: [businessId], references: [id])
+
+  @@unique([userId, roleId, businessId])
+  @@index([roleId])
+  @@index([userId])
+  @@index([businessId])
+}
+
+model PermissionByUser {
+  id           Int       @id @default(autoincrement())
+  permissionId Int
+  userId       Int
+  businessId   Int?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  permission Permission @relation(fields: [permissionId], references: [id])
+  user       User       @relation(fields: [userId], references: [id])
+  business   Business?  @relation(fields: [businessId], references: [id])
+
+  @@unique([userId, permissionId, businessId])
+  @@index([permissionId])
+  @@index([userId])
+  @@index([businessId])
+}
+
+// -----------------------------------------------------
+// SUBSCRIPTION & BILLING SYSTEM
+// -----------------------------------------------------
+model Package {
+  id           Int       @id @default(autoincrement())
+  title        String
+  slug         String    @unique
+  monthlyPrice Float
+  yearlyPrice  Float
+  description  String?
+  status       String
+  trialDays    Int?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  features      PackageByFeature[]
+  subscriptions Subscription[]
+  invoices      Invoice[]
+
+  @@index([slug])
+  @@index([status])
+  @@index([title])
+}
+
+model Feature {
+  id          Int       @id @default(autoincrement())
+  title       String
+  slug        String    @unique
+  description String?
+  status      String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  packages PackageByFeature[]
+
+  @@index([slug])
+  @@index([status])
+  @@index([title])
+}
+
+model PackageByFeature {
+  id        Int       @id @default(autoincrement())
+  packageId Int
+  featureId Int
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  package Package @relation(fields: [packageId], references: [id])
+  feature Feature @relation(fields: [featureId], references: [id])
+
+  @@unique([packageId, featureId])
+  @@index([packageId])
+  @@index([featureId])
+}
+
+model Subscription {
+  id               Int       @id @default(autoincrement())
+  packageId        Int
+  businessId       Int
+  subscriptionType String
+  startDate        DateTime
+  endDate          DateTime
+  trialStartDate   DateTime?
+  trialEndDate     DateTime?
+  status           String
+  pricePaid        Float
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+
+  package  Package   @relation(fields: [packageId], references: [id])
+  business Business  @relation(fields: [businessId], references: [id])
+  invoices Invoice[]
+
+  @@index([packageId])
+  @@index([businessId])
+  @@index([status])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([businessId, status])
+}
+
+model Invoice {
+  id             Int       @id @default(autoincrement())
+  packageId      Int
+  subscriptionId Int
+  businessId     Int
+  amount         Float
+  paymentMethod  String
+  paymentStatus  String
+  description    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  package      Package      @relation(fields: [packageId], references: [id])
+  subscription Subscription @relation(fields: [subscriptionId], references: [id])
+  business     Business     @relation(fields: [businessId], references: [id])
+
+  @@index([subscriptionId])
+  @@index([businessId])
+  @@index([paymentStatus])
+  @@index([businessId, paymentStatus])
+}
+
+// -----------------------------------------------------
+// NOTIFICATION SYSTEM
+// -----------------------------------------------------
+model Notification {
+  id         Int       @id @default(autoincrement())
+  userId     Int?
+  businessId Int?
+  type       String
+  title      String
+  message    String
+  status     String
+  sentAt     DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user     User?     @relation(fields: [userId], references: [id])
+  business Business? @relation(fields: [businessId], references: [id])
+
+  @@index([userId])
+  @@index([businessId])
+  @@index([status])
+  @@index([type])
+  @@index([createdAt])
+}
